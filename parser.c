@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_LENGTH 100
 
@@ -64,9 +65,8 @@ int print_line(FILE* fptr)
             {
                 if (result[0] == '@')
                 {
-                    char *slice = result + 1;
-                    printf("A-instruction slice: %s\n", slice);
                     // A-instruction
+                    char *slice = result + 1;
                     char *endptr;
                     int decimal_a_instruction = (int)strtol(slice, &endptr, 10);
                     // convert to binary
@@ -76,7 +76,44 @@ int print_line(FILE* fptr)
                     printf("Binary A-instruction: %s\n", binary_str);
                     
                 }
-                printf("%s\n", result);
+                else if (result[0] == '(')
+                {
+                    // todo: Handle label
+                }
+                else
+                {
+                    // handle c instruction
+                    // locate =
+
+                    char destination[25];
+                    char *comp_ptr = strchr(result, '=');
+
+                    
+                    printf("Jump instruction: %s\n", jump_slice);
+
+                    if (comp_ptr)
+                    {
+                        // Destination                        
+                        size_t destination_length = comp_ptr - result;
+                        memcpy(destination, result, destination_length);
+                        destination[destination_length] = '\0';
+                        printf("Destination: %s\n", destination);
+
+                        
+                        
+                        char *comp_slice = comp_ptr + 1;
+                        printf("Comp: %s\n", comp_slice);
+
+                        //jump instruction
+                        char *jump_ptr = strchr(comp_slice, ';');
+                        char *jump_slice = jump_ptr + 1;
+
+
+                    }
+                            
+                
+                }
+                printf("Result: %s\n", result);
             }
         }
         return 0;
@@ -110,3 +147,7 @@ void int_to_binary(long num, char *output, int bits)
     }
     output[bits] = '\0';
 }
+
+
+
+
