@@ -82,36 +82,38 @@ int print_line(FILE* fptr)
                 }
                 else
                 {
-                    // handle c instruction
-                    // locate =
-
                     char destination[25];
-                    char *comp_ptr = strchr(result, '=');
+                    char comp_inst[25];
+                    char jump_inst[25];
 
-                    
-                    printf("Jump instruction: %s\n", jump_slice);
+                    char *comp_start = result;
+                    char *comp_ptr = strchr(result, '=');
 
                     if (comp_ptr)
                     {
-                        // Destination                        
+                        comp_start = comp_ptr + 1;
+
                         size_t destination_length = comp_ptr - result;
                         memcpy(destination, result, destination_length);
                         destination[destination_length] = '\0';
                         printf("Destination: %s\n", destination);
-
-                        
-                        
-                        char *comp_slice = comp_ptr + 1;
-                        printf("Comp: %s\n", comp_slice);
-
-                        //jump instruction
-                        char *jump_ptr = strchr(comp_slice, ';');
-                        char *jump_slice = jump_ptr + 1;
-
-
                     }
-                            
-                
+
+                    char *jump_ptr = strchr(comp_start, ';');
+                    if (jump_ptr)
+                    {   
+                        size_t comp_length = jump_ptr - comp_start;
+                        memcpy(comp_inst, comp_start, comp_length);
+                        comp_inst[comp_length] = '\0';
+
+                        strcpy(jump_inst, jump_ptr + 1);
+
+                        
+                    }            
+                    else
+                    {
+                        strcpy(comp_inst, comp_start);
+                    }
                 }
                 printf("Result: %s\n", result);
             }
