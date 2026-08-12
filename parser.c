@@ -12,7 +12,7 @@ struct SymbolEntry
 
 struct SymbolEntry symbol_table[1000];
 int table_counter = 0;
-
+int rom_address = 0;
 
 int print_line(FILE* fptr);
 long int get_file_size(FILE* fptr);
@@ -76,6 +76,7 @@ int print_line(FILE* fptr)
             {
                 if (result[0] == '@')
                 {
+                    rom_address++;
                     // A-instruction
                     char *slice = result + 1;
                     char *endptr;
@@ -90,9 +91,23 @@ int print_line(FILE* fptr)
                 else if (result[0] == '(')
                 {
                     // todo: Handle label
+                    char *label_start = strchr(result, '(');
+                    label_start++;
+                    char *label_end = strchr(result, ')');
+
+                    size_t label_length = label_end - label_start;
+                    char label_definition[100];
+
+                    strncpy(label_definition, label_start, label_length);
+                    label_definition[label_length] = '\0';
+
+                    add_symbol_entry(label_definition, rom_address);
+                    
+
                 }
                 else
                 {
+                    rom_address++;
                     char destination[25];
                     char comp_inst[25];
                     char jump_inst[25];
@@ -117,9 +132,7 @@ int print_line(FILE* fptr)
                         memcpy(comp_inst, comp_start, comp_length);
                         comp_inst[comp_length] = '\0';
 
-                        strcpy(jump_inst, jump_ptr + 1);
-
-                        
+                        strcpy(jump_inst, jump_ptr + 1);                        
                     }            
                     else
                     {
