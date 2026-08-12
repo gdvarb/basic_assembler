@@ -4,9 +4,20 @@
 
 #define MAX_LENGTH 100
 
+struct SymbolEntry
+{
+    char name[100];
+    int address;
+};
+
+struct SymbolEntry symbol_table[1000];
+int table_counter = 0;
+
+
 int print_line(FILE* fptr);
 long int get_file_size(FILE* fptr);
 void int_to_binary(long num, char *output, int bits);
+void add_symbol_entry(char *symbol_name, int memory_address);
 
 
 int main()    
@@ -151,5 +162,9 @@ void int_to_binary(long num, char *output, int bits)
 }
 
 
-
-
+void add_symbol_entry(char *symbol_name, int memory_address)
+{
+    strcpy(symbol_table[table_counter].name, symbol_name);
+    symbol_table[table_counter].address = memory_address;
+    table_counter++;
+}
