@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAX_LENGTH 100
+#define TOTAL_BITS 17
 
 struct SymbolEntry
 {
@@ -13,11 +15,12 @@ struct SymbolEntry
 struct SymbolEntry symbol_table[1000];
 int table_counter = 0;
 int rom_address = 0;
+int custom_variable_address = 16;
 
-int print_line(FILE* fptr);
 long int get_file_size(FILE* fptr);
 void int_to_binary(long num, char *output, int bits);
 void add_symbol_entry(char *symbol_name, int memory_address);
+int parse(FILE* fptr, int parse);
 
 
 int main()    
@@ -35,12 +38,18 @@ int main()
         }
 
         long int file_size = get_file_size(fptr);
-        print_line(fptr);
+        int pass = 1;
+        parse(fptr, pass);
+        pass++;
+        rewind(fptr);
+        parse(fptr, pass);  
         fclose(fptr);
         return 0;
     }
 
-int print_line(FILE* fptr)
+
+
+int parse(FILE* fptr, int pass)
     {
         if (fptr == NULL)
         {
@@ -49,97 +58,134 @@ int print_line(FILE* fptr)
         }
 
         char data[MAX_LENGTH];
-        printf("reading file:\n");
         while (fgets(data, MAX_LENGTH, fptr) != NULL)
         {
-            char result[MAX_LENGTH];
-            int write_index = 0;
+            char instruction[MAX_LENGTH];
+            int instruction_idx = 0;
             for (int i = 0; data[i] != '\0'; i++)
             {
-                
                 if (data[i] == '/' && data[i + 1] == '/')
                 {
                     break;
                 }
-
                 if (data[i] == ' ' || data[i] == '\r' || data[i] == '\n')
                 {
                     continue;
                 }
-
-                result[write_index] = data[i];
-                write_index++;
+                instruction[instruction_idx] = data[i];
+                instruction_idx++;
             }
-            
-            result[write_index] = '\0';
-            if (result[0] != '\0')
+            instruction[instruction_idx] = '\0';
+            if (instruction[0] != '\0')
             {
-                if (result[0] == '@')
-                {
-                    rom_address++;
-                    // A-instruction
-                    char *slice = result + 1;
-                    char *endptr;
-                    int decimal_a_instruction = (int)strtol(slice, &endptr, 10);
-                    // convert to binary
-                    int total_bits = 16;
-                    char binary_str[total_bits + 1];
-                    int_to_binary(decimal_a_instruction, binary_str, total_bits);
-                    printf("Binary A-instruction: %s\n", binary_str);
-                    
-                }
-                else if (result[0] == '(')
-                {
-                    // todo: Handle label
-                    char *label_start = strchr(result, '(');
-                    label_start++;
-                    char *label_end = strchr(result, ')');
-
-                    size_t label_length = label_end - label_start;
-                    char label_definition[100];
-
-                    strncpy(label_definition, label_start, label_length);
-                    label_definition[label_length] = '\0';
-
-                    add_symbol_entry(label_definition, rom_address);
-                    
-
-                }
-                else
-                {
-                    rom_address++;
-                    char destination[25];
-                    char comp_inst[25];
-                    char jump_inst[25];
-
-                    char *comp_start = result;
-                    char *comp_ptr = strchr(result, '=');
-
-                    if (comp_ptr)
+                if (instruction[0] == '@')
+                {   
+                    switch (pass)
                     {
-                        comp_start = comp_ptr + 1;
+                        case 1:
+                            rom_address++;
+                            break;
 
-                        size_t destination_length = comp_ptr - result;
-                        memcpy(destination, result, destination_length);
-                        destination[destination_length] = '\0';
-                        printf("Destination: %s\n", destination);
-                    }
-
-                    char *jump_ptr = strchr(comp_start, ';');
-                    if (jump_ptr)
-                    {   
-                        size_t comp_length = jump_ptr - comp_start;
-                        memcpy(comp_inst, comp_start, comp_length);
-                        comp_inst[comp_length] = '\0';
-
-                        strcpy(jump_inst, jump_ptr + 1);                        
-                    }            
-                    else
-                    {
-                        strcpy(comp_inst, comp_start);
+                        case 2:
+                            char binary_str[TOTAL_BITS];
+                            char *symbol = instruction + 1;
+                            char *end_ptr;
+                            if (isalpha(symbol[0]) != 0)
+                            {
+                                printf("Symbol is %s\n", symbol);
+                                int symbol_found = 0;
+                                int address_to_convert = 0;
+                                char symbol_str[TOTAL_BITS];
+                                for (int i = 0; i < table_counter; i++)
+                                {
+                                    if (strcmp(symbol, symbol_table[i].name) == 0)
+                                    {
+                                        symbol_found = 1;
+                                        address_to_convert = symbol_table[i].address;
+                                    }
+                                }
+                                if (symbol_found == 0)
+                                {
+                                    //custom variable
+                                    add_symbol_entry(symbol, custom_variable_address);
+                                    address_to_convert = custom_variable_address;
+                                    custom_variable_address++;
+                                }
+                                int_to_binary((long)address_to_convert, symbol_str, TOTAL_BITS);
+                                printf("Binary instruction: %s\n", symbol_str);
+                            }
+                            else
+                            {
+                                int decimal_a_instruction = (int)strtol(instruction, &end_ptr, 10);
+                                int_to_binary(decimal_a_instruction, binary_str, TOTAL_BITS);
+                                printf("Binary A-Instruction: %s\n", binary_str);
+                            }
+                            break;
                     }
                 }
-                printf("Result: %s\n", result);
+                else 
+                    // C-instruction
+                    {
+                        switch (pass)
+                        {
+                            case 1:
+                                if (instruction[0] == '(')
+                                {
+                                    // add lable to the symbol table
+                                    char *label_start = strchr(instruction, '(');
+                                    label_start++;
+                                    char *label_end = strchr(instruction, ')');
+                                    size_t label_length = label_end - label_start;
+                                    char label_definition[100];
+                                    strncpy(label_definition, label_start, label_length);
+                                    label_definition[label_length] = '\0';
+                                    add_symbol_entry(label_definition, rom_address);
+                                }
+                                else
+                                {
+                                    rom_address++;
+                                }
+                                break;
+
+                            case 2:
+                                if (instruction[0] != '(')
+                                {
+                                    char dest[25];
+                                    char comp[25];
+                                    char jmp[25];
+
+                                    char *comp_start = instruction;
+                                    char *comp_ptr = strchr(instruction, '=');
+
+                                    if (comp_ptr)
+                                    {
+                                        // extract destination
+                                        comp_start = comp_ptr + 1;
+                                        size_t dest_length = comp_ptr - instruction;
+                                        memcpy(dest, instruction, dest_length);
+                                        dest[dest_length] = '\0';
+                                        printf("Destination: %s\n", dest);
+                                    }
+
+                                    char *jmp_ptr = strchr(comp_start, ';');
+                                    if (jmp_ptr)
+                                    {
+                                        //extract comp and jmp
+                                        size_t comp_length = jmp_ptr - comp_start;
+                                        memcpy(comp, comp_start, comp_length);
+                                        comp[comp_length] = '\0';
+
+                                        strcpy(jmp, jmp_ptr + 1);
+                                    }
+                                    else
+                                    {
+                                        //only comp portion
+                                        strcpy(comp, comp_start);
+                                    }
+                                }
+                                break;
+                        }
+                    }
             }
         }
         return 0;
