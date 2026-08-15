@@ -5,7 +5,10 @@
 
 #define MAX_LENGTH 100
 #define TOTAL_BITS 17
+#define COMP_TABLE_LENGTH 18
 
+struct SymbolEntry symbol_table[1000];
+int table_counter = 0;
 struct SymbolEntry
 {
     char name[100];
@@ -29,12 +32,32 @@ struct JumpEntry jmp_table[8] =
     {"JMP", "111"}
 };
 
-
-struct SymbolEntry symbol_table[1000];
-int table_counter = 0;
-
-
-struct JmpEntry jmp_table[8];
+struct CompEntry
+{
+    char command[4];
+    char bits[7];
+}
+struct CompEntry comp_table[18] =
+{
+    {'0', "101010"},
+    {'1', "111111"},
+    {"-1", "111010"},
+    {'D', "00100"},
+    {'A', "110000"},
+    {"!D", "001101"},
+    {"!A", "110001"},
+    {"-D", "001111"},
+    {"-A", "110011"},
+    {"D+1", "011111"},
+    {"A+1", "110111"},
+    {"D-1", "001110"},
+    {"A-1", "110010"},
+    {"D+A", "000010"},
+    {"D-A", "010011"},
+    {"A-D", "000111"},
+    {"D&A", "000000"},
+    {"D|A", "010101"}
+}
 
 int rom_address = 0;
 int custom_variable_address = 16;
@@ -44,7 +67,7 @@ void int_to_binary(long num, char *output, int bits);
 void add_symbol_entry(char *symbol_name, int memory_address);
 int parse(FILE* fptr, int parse);
 char* dest_bits(char* dest);
-void populate_jmp_table();
+char* comp_bits(char *comp_inst);
 
 
 int main()    
@@ -259,4 +282,31 @@ char* dest_bits(char *dest)
     if (strchr(dest, 'D')) dest_bits[1] = '1';
     if (strchr(dest, 'M')) dest_bits[2] = '1';
     return dest_bits;
+}
+
+char* comp_bits(char *comp_inst)
+{
+    char comp_key[4];
+    strcpy(comp_key, comp_inst);
+    char a_bit = '0';
+    char *m_pos = strchr(comp_key, 'M');
+    if (m_pos != NULL)
+    {
+        a_bit = '1';
+        *m_pos = 'A';
+    }
+
+    for (int i = 0; i < COMP_TABLE_LENGTH; i++)
+    {
+        if (strcmp(comp_key, comp_table[i].command) == 0)
+        {
+            size_t comp_bits_len = strlen(comp_table[i].bits);
+            char *comp_bits = malloc(comp_bits_len + 2);
+            if (comp_bits == NULL) return NULL;
+            comp_bits[0] = a_bit;
+            memcpy(comp_bits + 1, comp_table[i].bits, comp_bits_len);
+            comp_bits[comp_bits_len + 1] = '\0';
+            return comp_bits;
+        }
+    }
 }
