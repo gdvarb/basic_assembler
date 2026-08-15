@@ -12,8 +12,30 @@ struct SymbolEntry
     int address;
 };
 
+struct JmpEntry
+{
+    char command[4];
+    char bits[4];
+}
+struct JumpEntry jmp_table[8] =
+{
+    {"null", "000"},
+    {"JGT", "001"},
+    {"JEQ", "010"},
+    {"JGE", "011"},
+    {"JLT", "100"},
+    {"JNE", "101"},
+    {"JLE", "110"},
+    {"JMP", "111"}
+};
+
+
 struct SymbolEntry symbol_table[1000];
 int table_counter = 0;
+
+
+struct JmpEntry jmp_table[8];
+
 int rom_address = 0;
 int custom_variable_address = 16;
 
@@ -21,6 +43,8 @@ long int get_file_size(FILE* fptr);
 void int_to_binary(long num, char *output, int bits);
 void add_symbol_entry(char *symbol_name, int memory_address);
 int parse(FILE* fptr, int parse);
+char* dest_bits(char* dest);
+void populate_jmp_table();
 
 
 int main()    
@@ -226,4 +250,13 @@ void add_symbol_entry(char *symbol_name, int memory_address)
     strcpy(symbol_table[table_counter].name, symbol_name);
     symbol_table[table_counter].address = memory_address;
     table_counter++;
+}
+
+char* dest_bits(char *dest)
+{
+    char dest_bits[4] = "000";
+    if (strchr(dest, 'A')) dest_bits[0] = '1';
+    if (strchr(dest, 'D')) dest_bits[1] = '1';
+    if (strchr(dest, 'M')) dest_bits[2] = '1';
+    return dest_bits;
 }
