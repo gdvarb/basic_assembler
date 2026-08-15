@@ -7,20 +7,21 @@
 #define TOTAL_BITS 17
 #define COMP_TABLE_LENGTH 18
 
-struct SymbolEntry symbol_table[1000];
-int table_counter = 0;
 struct SymbolEntry
 {
     char name[100];
     int address;
 };
+struct SymbolEntry symbol_table[1000];
+int table_counter = 0;
+
 
 struct JmpEntry
 {
     char command[4];
     char bits[4];
-}
-struct JumpEntry jmp_table[8] =
+};
+struct JmpEntry jmp_table[8] =
 {
     {"null", "000"},
     {"JGT", "001"},
@@ -36,14 +37,14 @@ struct CompEntry
 {
     char command[4];
     char bits[7];
-}
+};
 struct CompEntry comp_table[18] =
 {
-    {'0', "101010"},
-    {'1', "111111"},
+    {"0", "101010"},
+    {"1", "111111"},
     {"-1", "111010"},
-    {'D', "00100"},
-    {'A', "110000"},
+    {"D", "00100"},
+    {"A", "110000"},
     {"!D", "001101"},
     {"!A", "110001"},
     {"-D", "001111"},
@@ -57,7 +58,7 @@ struct CompEntry comp_table[18] =
     {"A-D", "000111"},
     {"D&A", "000000"},
     {"D|A", "010101"}
-}
+};
 
 int rom_address = 0;
 int custom_variable_address = 16;
@@ -228,6 +229,7 @@ int parse(FILE* fptr, int pass)
                                     {
                                         //only comp portion
                                         strcpy(comp, comp_start);
+                                        //char *comp_bits = comp_bits[comp];  
                                     }
                                 }
                                 break;
