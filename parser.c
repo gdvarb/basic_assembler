@@ -6,6 +6,7 @@
 #define MAX_LENGTH 100
 #define TOTAL_BITS 17
 #define COMP_TABLE_LENGTH 18
+#define JMP_TABLE_LENGTH 8
 
 struct SymbolEntry
 {
@@ -18,7 +19,7 @@ int table_counter = 0;
 
 struct JmpEntry
 {
-    char command[4];
+    char command[5];
     char bits[4];
 };
 struct JmpEntry jmp_table[8] =
@@ -43,7 +44,7 @@ struct CompEntry comp_table[18] =
     {"0", "101010"},
     {"1", "111111"},
     {"-1", "111010"},
-    {"D", "00100"},
+    {"D", "001100"},
     {"A", "110000"},
     {"!D", "001101"},
     {"!A", "110001"},
@@ -66,15 +67,19 @@ int custom_variable_address = 16;
 long int get_file_size(FILE* fptr);
 void int_to_binary(long num, char *output, int bits);
 void add_symbol_entry(char *symbol_name, int memory_address);
-int parse(FILE* fptr, int parse);
+int parse(FILE* fptr, int parse, FILE* wptr);
 char* dest_bits(char* dest);
 char* comp_bits(char *comp_inst);
+char* jmp_bits(char *jmp_inst);
+
 
 
 int main()    
     {
         FILE* fptr;
+        FILE* wptr;
         fptr = fopen("add.asm", "r");
+        wptr = fopen("prog.hack", "w");
 
         if (fptr == NULL)
         {
@@ -85,19 +90,20 @@ int main()
             printf("file was opened\n");
         }
 
-        long int file_size = get_file_size(fptr);
+        //long int file_size = get_file_size(fptr);
         int pass = 1;
-        parse(fptr, pass);
+        parse(fptr, pass, wptr);
         pass++;
         rewind(fptr);
-        parse(fptr, pass);  
+        parse(fptr, pass, wptr);  
         fclose(fptr);
+        fclose(wptr);
         return 0;
     }
 
 
 
-int parse(FILE* fptr, int pass)
+int parse(FILE* fptr, int pass, FILE* wptr)
     {
         if (fptr == NULL)
         {
@@ -140,7 +146,7 @@ int parse(FILE* fptr, int pass)
                             char *end_ptr;
                             if (isalpha(symbol[0]) != 0)
                             {
-                                printf("Symbol is %s\n", symbol);
+                                //printf("Symbol is %s\n", symbol);
                                 int symbol_found = 0;
                                 int address_to_convert = 0;
                                 char symbol_str[TOTAL_BITS];
@@ -159,14 +165,16 @@ int parse(FILE* fptr, int pass)
                                     address_to_convert = custom_variable_address;
                                     custom_variable_address++;
                                 }
-                                int_to_binary((long)address_to_convert, symbol_str, TOTAL_BITS);
-                                printf("Binary instruction: %s\n", symbol_str);
+                                int_to_binary((long)address_to_convert, symbol_str, TOTAL_BITS - 1);
+                                //printf("Binary instruction: %s\n", symbol_str);
+                                fprintf(wptr, "%s\n", symbol_str);
                             }
                             else
                             {
                                 int decimal_a_instruction = (int)strtol(instruction, &end_ptr, 10);
-                                int_to_binary(decimal_a_instruction, binary_str, TOTAL_BITS);
-                                printf("Binary A-Instruction: %s\n", binary_str);
+                                int_to_binary(decimal_a_instruction, binary_str, TOTAL_BITS - 1);
+                                //printf("Binary A-Instruction: %s\n", binary_str);
+                                fprintf(wptr, "%s", binary_str);
                             }
                             break;
                     }
@@ -198,9 +206,14 @@ int parse(FILE* fptr, int pass)
                             case 2:
                                 if (instruction[0] != '(')
                                 {
+                                    char instruction_bits[TOTAL_BITS];
                                     char dest[25];
                                     char comp[25];
                                     char jmp[25];
+                                    
+                                    char d_bits[4] = "000";
+                                    char j_bits[4] = "000";
+                                    char c_bits[8] = "0000000";
 
                                     char *comp_start = instruction;
                                     char *comp_ptr = strchr(instruction, '=');
@@ -212,7 +225,11 @@ int parse(FILE* fptr, int pass)
                                         size_t dest_length = comp_ptr - instruction;
                                         memcpy(dest, instruction, dest_length);
                                         dest[dest_length] = '\0';
-                                        printf("Destination: %s\n", dest);
+
+                                        char *dest_result = dest_bits(dest);
+                                        strcpy(d_bits, dest_result);
+                                        //printf("Destination: %s\n", dest);
+                                        free(dest_result);
                                     }
 
                                     char *jmp_ptr = strchr(comp_start, ';');
@@ -222,15 +239,27 @@ int parse(FILE* fptr, int pass)
                                         size_t comp_length = jmp_ptr - comp_start;
                                         memcpy(comp, comp_start, comp_length);
                                         comp[comp_length] = '\0';
+                                        char *comp_result = comp_bits(comp);
+                                        strcpy(c_bits, comp_result);
+                                        free(comp_result);
+
 
                                         strcpy(jmp, jmp_ptr + 1);
+                                        char *jmp_result = jmp_bits(jmp);
+                                        strcpy(j_bits, jmp_result);
                                     }
                                     else
                                     {
                                         //only comp portion
                                         strcpy(comp, comp_start);
-                                        //char *comp_bits = comp_bits[comp];  
+                                        char *comp_result = comp_bits(comp);
+                                        strcpy(c_bits, comp_result);
+                                        free(comp_result);
+
                                     }
+                                    snprintf(instruction_bits, sizeof(instruction_bits), "111%s%s%s", c_bits, d_bits, j_bits);
+                                    printf("Instruction_bits: %s\n", instruction_bits);
+                                    fprintf(wptr, "%s\n", instruction_bits);
                                 }
                                 break;
                         }
@@ -279,10 +308,15 @@ void add_symbol_entry(char *symbol_name, int memory_address)
 
 char* dest_bits(char *dest)
 {
-    char dest_bits[4] = "000";
-    if (strchr(dest, 'A')) dest_bits[0] = '1';
-    if (strchr(dest, 'D')) dest_bits[1] = '1';
-    if (strchr(dest, 'M')) dest_bits[2] = '1';
+    char bits[4] = "000";
+    if (strchr(dest, 'A')) bits[0] = '1';
+    if (strchr(dest, 'D')) bits[1] = '1';
+    if (strchr(dest, 'M')) bits[2] = '1';
+
+    size_t dest_bits_len = strlen(bits);
+    char* dest_bits = malloc(dest_bits_len + 1);
+    memcpy(dest_bits, bits, dest_bits_len);
+    dest_bits[dest_bits_len] = '\0';
     return dest_bits;
 }
 
@@ -311,4 +345,17 @@ char* comp_bits(char *comp_inst)
             return comp_bits;
         }
     }
+    return NULL;
+}
+
+char* jmp_bits(char *jmp_inst)
+{
+    for (int i = 0; i < JMP_TABLE_LENGTH; i++)
+    {
+        if (strcmp(jmp_table[i].command, jmp_inst) == 0)
+        {
+            return jmp_table[i].bits;
+        }
+    }
+    return NULL;
 }
